@@ -20,6 +20,7 @@
 \usepackage{array}
 \usepackage{booktabs}
 \usepackage{eurosym}
+\usepackage{tabularx}
 
 % SYMBOLS
 
@@ -191,23 +192,42 @@
 % MAIN DOCUMENT
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+\newcolumntype{L}[1]{>{\raggedright\let\newline\\\arraybackslash\hspace{0pt}}m{#1}}
+\newcolumntype{C}[1]{>{\centering\let\newline\\\arraybackslash\hspace{0pt}}m{#1}}
+\newcolumntype{R}[1]{>{\raggedleft\let\newline\\\arraybackslash\hspace{0pt}}m{#1}}
+
 \begin{document}
 
-    \makebox[\textwidth]{\rule{\textwidth}{0.4pt}}
+    \begin{table}[ht]
+        \centering
+        \begin{tabular}{@{}L{0.5\textwidth}R{0.5\textwidth}@{}}
+            \toprule
+            & {%
+                Destinatario:
+            } \\
+            & {%
+                \textbf{\preventivoDestinatarioName{}}
+            } \\
+            & {%
+                \preventivoDestinatarioAddress{}
+            } \\
+            \midrule
+            {%
+                Oggetto:
+            } & \\
+            {%
+                \textbf{\preventivoObject{}}
+            } & \\
+            \bottomrule
+        \end{tabular}
+    \end{table}
+    %\makebox[\textwidth]{\rule{\textwidth}{0.4pt}}
 
-    \begin{flushright}
-        Destinatario: \\
-        \textbf{ \preventivoDestinatarioName{} } \\
-        \preventivoDestinatarioAddress{}
-    \end{flushright}
+    %\makebox[\textwidth]{\rule{\textwidth}{0.4pt}}
 
-    \makebox[\textwidth]{\rule{\textwidth}{0.4pt}}
 
-    Oggetto:
 
-    \textbf{\preventivoObject{}}
-
-    \makebox[\textwidth]{\rule{\textwidth}{0.4pt}}
+    %\makebox[\textwidth]{\rule{\textwidth}{0.4pt}}
 
     \definecolor{BackgroundTitleColor}{rgb}{<< model.title_background_color >>}
     \definecolor{BackgroundDescriptionColor}{rgb}{<< model.description_background_color >>}
@@ -259,5 +279,16 @@
             \bottomrule
         \end{tabular}
     \end{table}
+
+    <% if len(model.destinatario_notes) > 0 %>
+        \textbf{Note:}
+        \begin{itemize}
+            <% for i, note in enumerate(model.destinatario_notes[:-1]) %>
+                \item[$\diamond$] << note >>;
+            <% endfor %>
+            \item[$\diamond$] << model.destinatario_notes[-1] >>.
+        \end{itemize}
+    <% endif %>
+
 
 \end{document}
