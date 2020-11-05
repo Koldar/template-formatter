@@ -1,0 +1,263 @@
+\documentclass[a4]{article}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% PACKAGES
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% STANDARD
+
+\usepackage{xparse}
+\usepackage{xstring}
+\usepackage{etoolbox}
+\usepackage{graphicx}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage[includehead, includefoot, a4paper]{geometry}
+\usepackage{fp}
+\usepackage{xfp}
+\usepackage{color}
+\usepackage{colortbl}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{eurosym}
+
+% SYMBOLS
+
+\usepackage{pifont}
+\usepackage{fontawesome}
+
+% URL
+
+\usepackage{url}
+
+% PROOF READING
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[italian]{babel}
+
+% TIKZ
+
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, matrix, arrows,automata,positioning}
+
+% FONTS AND COLORS
+
+\usepackage{xcolor}
+\usepackage{cancel}
+
+% GEOMETRY
+
+\renewcommand{\dblfloatpagefraction}{0.95}
+\renewcommand{\dbltopfraction}{1}
+\renewcommand{\topfraction}{1}
+\renewcommand{\textfraction}{0.0}
+\renewcommand{\floatpagefraction}{1}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% NEW COMMAND
+
+% the image we need to put as the logo of the preventivo
+\newcommand{\preventivoCompanyLogo}{<< model.company_logo >>}
+% name of the company
+\newcommand{\preventivoCompanyName}{<< model.company_name >>}
+% address of the company
+\newcommand{\preventivoCompanyAddress}{<< model.company_address >>}
+% Partita IVA of the company
+\newcommand{\preventivoCompanyPIva}{<< model.company_piva >>}
+% Cofice Fiscale of the company
+\newcommand{\preventivoCompanyCf}{<< model.company_cf >>}
+% Email of the company
+\newcommand{\preventivoCompanyEmail}{<< model.company_email >>}
+% telephone of the company
+\newcommand{\preventivoCompanyTelephone}{<< model.company_telephone >>}
+% year of preventivo (near the id)
+\newcommand{\preventivoIdYear}{<< model.preventivo_id_year >>}
+% id of preventivo
+\newcommand{\preventivoId}{<< model.preventivo_id >>}
+% date to put on the preventivo
+\newcommand{\preventivoDate}{<< model.preventivo_date >>}
+
+% what the preventivo is about
+\newcommand{\preventivoObject}{<< model.preventivo_object >>}
+% the company that requests us something
+\newcommand{\preventivoDestinatarioName}{<< model.destinatario_name >>}
+% the address of the company that requests us something
+\newcommand{\preventivoDestinatarioAddress}{<< model.destinatario_address >>}
+
+\newcommand{\preventivoCompanyHeaderDataModifier}[1]{\footnotesize{#1}}
+
+% PREAMBLE CALLBACK
+
+\makeatletter
+
+% write the header height in a auxiliary file. In the second run we will use such height
+% set the headers and footers: we will load the "heights" file if it exists
+
+\AtEndPreamble{%
+    \message{Trying to load file \jobname.heights containing header and footer requested heights..}%
+    \InputIfFileExists{\jobname.heights}{}{}%
+    \message{head height is \the\headheight}%
+    \message{foot skip is \the\footskip}%
+    % in order to compute the revised footskip, we need the revised textheight as well. We create counter (integer variables) that stores such values
+    \newcounter{oldheadheight}
+    \setcounter{oldheadheight}{\number\headheight}
+    \newcounter{oldfootskip}
+    \setcounter{oldfootskip}{\number\footskip}
+    \message{done creating the counters}
+
+    \pagestyle{fancy}%
+    \fancyhead[L]{%
+        \begin{minipage}{0.33\textwidth}%
+            \centering%
+            \includegraphics[width=1.0\textwidth]{\preventivoCompanyLogo}%
+        \end{minipage}%
+    }
+    \fancyhead[C]{}
+    \fancyhead[R]{%
+        \begin{tabular}{r}%
+            \preventivoCompanyHeaderDataModifier{\preventivoCompanyName{}} \\%
+            \preventivoCompanyHeaderDataModifier{\preventivoCompanyAddress{}} \\%
+            \preventivoCompanyHeaderDataModifier{P.IVA \preventivoCompanyPIva{}}\\%
+            \preventivoCompanyHeaderDataModifier{C.F. \preventivoCompanyCf{}}\\%
+            \preventivoCompanyHeaderDataModifier{PREVENTIVO}\\%
+            \preventivoCompanyHeaderDataModifier{nr. \preventivoId{}/\preventivoIdYear{} del \preventivoDate{}}\\%
+        \end{tabular}%
+    }
+
+    \fancyfoot[L]{%
+        \tiny{%
+            Preventivo nr. \preventivoId{}/\preventivoIdYear{} \\%
+            data \preventivoDate{} \\%
+            \preventivoCompanyName{} \preventivoCompanyEmail{} \\%
+            Tel. \preventivoCompanyTelephone{}%
+        }%
+    }
+    \fancyfoot[C]{%
+        \tiny{%
+            Version << program_version >> \\%
+            generated \two@digits{\day}/\two@digits{\month}/\the\year%
+        }%
+    }
+    \fancyfoot[R]{%
+        \tiny{%
+            \thepage / \pageref{LastPage}%
+        }%
+    }
+}
+
+%this will create the file "heights" which will be used to retrieve the requested header height (if not already existing)
+\AfterEndDocument{%
+    \if@filesw % respect \nofiles
+    \begingroup
+        \IfFileExists{\jobname.heights}{%
+        }{%
+            % same write register as environment `filecontents` uses
+            \chardef\reserved@c=15 %
+            % open fiel "heights" as write mode
+            \immediate\openout\reserved@c=\jobname.heights
+            % write the string set length and so on
+            \immediate\write\reserved@c{%
+                \string\setlength{\string\headheight}{\the\headheight}%
+            }%
+            % write text height (see https://ctan.mirror.garr.it/mirrors/ctan/macros/latex/contrib/fancyhdr/fancyhdr.pdf, page 6)
+            \FPset\a{\number\textheight}%
+            \FPset\b{\theoldheadheight}%
+            \FPset\c{\number\headheight}%
+            \FPset\d{\theoldfootskip}%
+            \FPset\e{\number\footskip}%
+            \FPeval{\actualtextheight}{(\a - (\c - \b) - (\e - \d))/65536}%
+            \immediate\write\reserved@c{%
+                \string\setlength{\string\textheight}{\actualtextheight pt}%
+            }%
+            % write the string set length and so on https://tex.stackexchange.com/a/15003/145331
+            \FPset\a{\number\headheight}%
+            \FPset\b{\number\footskip}%
+            \FPeval{\result}{(\a - \b)/65536}%
+            \immediate\write\reserved@c{%
+                \string\setlength{\string\footskip}{\the\footskip}%
+            }%
+            % close file
+            \immediate\closeout\reserved@c
+        }
+    \endgroup
+    \fi
+}
+
+\makeatother
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% MAIN DOCUMENT
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+    \makebox[\textwidth]{\rule{\textwidth}{0.4pt}}
+
+    \begin{flushright}
+        Destinatario: \\
+        \textbf{ \preventivoDestinatarioName{} } \\
+        \preventivoDestinatarioAddress{}
+    \end{flushright}
+
+    \makebox[\textwidth]{\rule{\textwidth}{0.4pt}}
+
+    Oggetto:
+
+    \textbf{\preventivoObject{}}
+
+    \makebox[\textwidth]{\rule{\textwidth}{0.4pt}}
+
+    \definecolor{BackgroundTitleColor}{rgb}{<< model.title_background_color >>}
+    \definecolor{BackgroundDescriptionColor}{rgb}{<< model.description_background_color >>}
+
+    \begin{table}[hb]
+        \centering
+        \renewcommand{\arraystretch}{1.4}
+        \begin{tabular}{@{}m{0.03\textwidth}m{0.84\textwidth}m{0.12\textwidth}@{}}
+            \toprule
+            {\textbf{\#}} & {\textbf{Descrizione}}    &   {\textbf{Prezzo[\euro]}}\\
+            \midrule
+            %
+            <% for i, preventivo_entry in enumerate(model.entries) %>
+                %
+                %%%%%%%%%%%%%%%%%%%%%%
+                % TITLE
+                %%%%%%%%%%%%%%%%%%%%%%
+                \rowcolor{BackgroundTitleColor}%
+                {%
+                    <<i>>%
+                }%
+                 & %
+                {%
+                    \textbf{<< preventivo_entry.title >> (Quantità: << preventivo_entry.quantity >>, Prezzo Unitario: << preventivo_entry.price_unit >>)}%
+                }%
+                 & %
+                {%
+                    << preventivo_entry.partial_price >>%
+                } \\
+                %%%%%%%%%%%%%%%%%%%%%%
+                % DESCRIPTION
+                %%%%%%%%%%%%%%%%%%%%%%
+                \rowcolor{BackgroundDescriptionColor}%
+                {%
+                }%
+                & %
+                {%
+                    << preventivo_entry.description >>%
+                }%
+                & %
+                {%
+                }%
+                \\
+            <% endfor %>%
+            %
+            \midrule
+            & {\textbf{TOTALE: }} & << model.total_price >> \\
+            %
+            \bottomrule
+        \end{tabular}
+    \end{table}
+
+\end{document}
