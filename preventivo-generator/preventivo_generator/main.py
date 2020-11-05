@@ -38,6 +38,8 @@ class Model:
         self.preventivo_object = None
         self.destinatario_name = None
         self.destinatario_address = None
+        self.destinatario_notes = []
+        self.destinatario_before_notes = None
         self.title_background_color = None
         self.description_background_color = None
         self.output_file = None
@@ -91,8 +93,11 @@ def parse_options(args):
     parser.add_argument("--destinatarioAddress", type=str, required=False, default=None, help="""
         Address of the destinatario
     """)
+    parser.add_argument("--destinatarioBeforeNotes", type=str, required=False, default=None, help="""
+        String to be put before the ntoes
+    """)
     parser.add_argument("--destinatarioNotes", type=str, required=False, default=None, help="""
-        Notes of the destinatario. Will be skipped
+        Notes of the destinatario. Each note will be put as a itemize
     """)
     parser.add_argument("--titleBackgroundColor", type=str, required=False, default=None, help="""
         Color of the background of the table containig title rows
@@ -157,6 +162,11 @@ def load_from_config(config_filepath: str, model: Model):
 
         try:
             model.destinatario_notes = list(filter(lambda x: len(x) > 0, destinatario_section["destinatarioNotes"].splitlines()))
+        except KeyError:
+            pass
+
+        try:
+            model.destinatario_before_notes = destinatario_section["destinatarioBeforeNotes"]
         except KeyError:
             pass
 
@@ -258,6 +268,9 @@ def generate_model(args) -> Model:
     if options.destinatarioAddress is not None:
         model.destinatario_address = options.destinatarioAddress
 
+    if options.destinatarioBeforeNotes is not None:
+        model.destinatario_before_notes = options.destinatarioBeforeNotes
+
     if options.destinatarioNotes is not None:
         model.destinatario_notes = options.destinatarioNotes
 
@@ -311,6 +324,9 @@ def generate_model(args) -> Model:
 
     if model.destinatario_address is None:
         model.destinatario_address = "client@client.com"
+
+    if model.destinatario_before_notes is None:
+        model.destinatario_before_notes = ""
 
     if model.destinatario_notes is None:
         model.destinatario_notes = []

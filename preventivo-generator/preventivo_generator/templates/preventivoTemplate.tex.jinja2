@@ -280,6 +280,10 @@
         \end{tabular}
     \end{table}
 
+    <% if len(model.destinatario_before_notes) > 0 %>
+        << model.destinatario_before_notes >>
+    <% endif %>
+
     <% if len(model.destinatario_notes) > 0 %>
         \textbf{Note:}
         \begin{itemize}
