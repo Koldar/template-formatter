@@ -1,0 +1,5 @@
+Hello {{ model.name }}!
+
+Hello {{ ''.join(map(replace_with_a, model.name)) }}
+
+The version is {{ commons.program_version }}
