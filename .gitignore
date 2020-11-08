@@ -2,6 +2,10 @@
 .idea/
 venv/
 *.pyc
+*.spec
+
+# Pyinstaller build
+dist/
 
 build/
 #Some users do not use make and the latex build files are deployed in root
