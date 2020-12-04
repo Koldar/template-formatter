@@ -11,7 +11,9 @@ import toml
 
 from template_formatter import version
 from template_formatter.AppContext import AppContext
+from template_formatter.FStringFormatter import FStringFormatter
 from template_formatter.Jinja2Formatter import Jinja2Formatter
+from template_formatter.PythonFormatFormatter import PythonFormatFormatter
 from template_formatter.PythonFormatter import PythonFormatter
 
 
@@ -26,7 +28,7 @@ def parse_options(args):
     parser = argparse.ArgumentParser(
         prog="""template-formatter""",
         description="""
-        Allows to generate a file formatted according jinja2 template
+        Allows to generate a file formatted according jinja2 template or other template engines.
         """,
         epilog=f"version {version.VERSION}, Copyright 2020 Massimo Bono"
     )
@@ -35,8 +37,16 @@ def parse_options(args):
     """)
     parser.add_argument("-f", "--format", type=str, required=False, default=None, help="""
         String representing how is layout the template file/string. Allowed values are:
-         - jinja (the default): the template is formatted according jinja2 template (see https://jinja.palletsprojects.com/en/2.11.x/);
-         - python: the template is formatted according format python function (see https://docs.python.org/3/library/string.html#format-specification-mini-language)
+         - jinja2 (the default): the template is formatted according jinja2 template 
+                (see https://jinja.palletsprojects.com/en/2.11.x/);
+         - format: the template is formatted according "format" python function 
+                (see https://docs.python.org/3/library/string.html#format-specification-mini-language)
+         - fstring: the python string interpolation 
+                (see https://docs.python.org/3/tutorial/inputoutput.html#tut-f-strings). 
+                If you use it, ensures that at the beginning and at the end of the string to interpolate
+                there is a pythonic start and end element (e.g., ", ', or \"\"\")
+        - python: the template string is interpreted as a python script. Everythign that you will be print
+                on the standard console (e.g., with print) will the rendered 
     """)
     parser.add_argument("--configFile", type=str, required=False, default=None, help="""
         A configuration file, containing the variables used to format the jinja2 template. Follows the TOML 
@@ -336,6 +346,10 @@ def main(args=None):
 
     if app_context.format == "jinja2":
         formatter = Jinja2Formatter()
+    elif app_context.format == "format":
+        formatter = PythonFormatFormatter()
+    elif app_context.format == "fstring":
+        formatter = FStringFormatter()
     elif app_context.format == "python":
         formatter = PythonFormatter()
     else:

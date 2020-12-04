@@ -1,11 +1,9 @@
-import io
-import sys
-from typing import Dict, Any, Callable, Optional
+from typing import Optional, Dict, Any, Callable
 
 from template_formatter.ITemplateFormatter import ITemplateFormatter
 
 
-class PythonFormatter(ITemplateFormatter):
+class PythonFormatFormatter(ITemplateFormatter):
 
     def __init__(self):
         self.__template_string: Optional[str] = None
@@ -24,15 +22,7 @@ class PythonFormatter(ITemplateFormatter):
         global_dict["functions"] = functions
         for k, v in functions.items():
             global_dict[k] = v
-        try:
-            old_stdout = sys.stdout
-            buffer = io.StringIO()
-            sys.stdout = buffer
-            exec(self.__template_string, global_dict, {})
-            result = buffer.getvalue()
-            return result
-        finally:
-            sys.stdout = old_stdout
+        return self.__template_string.format(**global_dict)
 
     def reset(self):
         self.__template_string = None

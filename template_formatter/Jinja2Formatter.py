@@ -32,6 +32,7 @@ class Jinja2Formatter(ITemplateFormatter):
             # data
             model=model,
             commons=commons,
+            functions=functions,
             # commons function (they are so popular that we put them on the cwd)
             **functions
         )
