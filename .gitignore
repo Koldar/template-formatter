@@ -3,6 +3,7 @@
 venv/
 *.pyc
 *.spec
+*PASSWORD*
 
 # Pyinstaller build
 dist/
