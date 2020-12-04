@@ -33,7 +33,7 @@ def get_data_files() -> List[Tuple[str, List[str]]]:
 
 setuptools.setup(
     name="template-formatter",
-    version=str(version.VERSION),
+    version=version.VERSION,
     author="Massimo Bono",
     author_email="massimobono1@gmail.com",
     description="Wrapper to jinja2 template system",
@@ -41,10 +41,9 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/Koldar/template-formatter.git",
     packages=setuptools.find_packages(),
-    scripts=["bin/template-formatter.py"],
     classifiers=[
         "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: Apache 2 License",
+        "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
     ],
     install_requires=list(get_requirements("requirements.txt")),

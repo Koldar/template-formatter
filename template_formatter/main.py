@@ -1,11 +1,10 @@
 import argparse
-import enum
 import logging
 import math
 import os
 
 from datetime import datetime
-from typing import Any, Optional, List, Iterable, Tuple, Dict
+from typing import Any, Iterable, Tuple
 
 import sys
 import toml
@@ -13,7 +12,6 @@ import toml
 from template_formatter import version
 from template_formatter.AppContext import AppContext
 from template_formatter.Jinja2Formatter import Jinja2Formatter
-from template_formatter.Jinja2Model import ValueKeyNotFound
 from template_formatter.PythonFormatter import PythonFormatter
 
 
@@ -32,7 +30,7 @@ def parse_options(args):
         """,
         epilog=f"version {version.VERSION}, Copyright 2020 Massimo Bono"
     )
-    parser.add_argument("templateString", type=str, nargs=1, default=None, help="""
+    parser.add_argument("templateString", type=str, nargs='?', default=None, help="""
         If present, it represents the string with jinja2 template that we need to parse. If present, it ovewrites inputFile
     """)
     parser.add_argument("-f", "--format", type=str, required=False, default=None, help="""
@@ -47,7 +45,7 @@ def parse_options(args):
     parser.add_argument("--inputFile", type=str, required=False, default=None, help="""
         the template jinja2 file. If absent we will look for the file in configFile
     """)
-    parser.add_argument("--writeOnStdout", action="store_true", required=False, default=False, help="""
+    parser.add_argument("-w", "--writeOnStdout", action="store_true", required=False, default=False, help="""
         If set, we will put the content of the generated file on the stdout rather than in a file. Overwrite outputFile
     """)
     parser.add_argument("--outputFile", type=str, required=False, default=None, help="""
@@ -92,7 +90,6 @@ def parse_options(args):
         the jinja2 string that will start a line statement. If unspecified it is "#"
     """)
     parser.add_argument("-V", "--value", action="append", nargs=2, required=False, default=[], help="""
-        NOT WORKING ATM
         Represents a key value that can be used in the jinja2 template. 
         If the same key is addded multiple time, it represents a list of values
         --value a 3 --value a 4 # a will be values.a=[3,4]
@@ -168,145 +165,16 @@ def pairs(iterable, terminate_with) -> Iterable[Tuple[Any, Any]]:
         if not item1_filled:
             item1 = x
         else:
-            yield (item1, x)
+            yield item1, x
             item1 = x
-    yield (item1, terminate_with)
+    yield item1, terminate_with
 
 
-def update_using_command_line(app_context: AppContext, options: argparse.Namespace) -> AppContext:
+def update_using_command_line(app_context: AppContext, options: argparse.Namespace) -> "AppContext":
 
-    # class TokenEnum(enum.Enum):
-    #     OPEN_BRACKET = 0
-    #     CLOSE_BRACKET = 1
-    #     DOT = 2
-    #     ID = 3
-    #     NUMBER = 4
-    #     EOF = 5
-    #
-    # class Token:
-    #
-    #     def __init__(self, token_type: TokenEnum, payload: Optional[str], start_inclusive: int, end_exclusive: int):
-    #         self.token_type = token_type
-    #         self.payload = payload
-    #         self.start_inclusive = start_inclusive
-    #         self.end_exclusive = end_exclusive
-    #
-    # def read_token(string: str) -> Iterable[Token]:
-    #     """
-    #     lexer
-    #     :param string: the string whose tokens we need to retrievce
-    #     """
-    #     # are we currently building a identifier?
-    #     building_string: Optional[str] = None
-    #     # are we currently building a number ?
-    #     building_number: Optional[str] = None
-    #     for i, ch in map(lambda x: (x, string[x]), range(len(string))):
-    #
-    #         if ch in "[].":
-    #             if building_number is not None:
-    #                 yield Token(TokenEnum.NUMBER, building_string, i - len(building_string), i)
-    #                 building_number = None
-    #             elif building_string is not None:
-    #                 yield Token(TokenEnum.ID, building_string, i - len(building_string), i)
-    #                 building_string = None
-    #
-    #             if ch == "[":
-    #                 yield Token(TokenEnum.OPEN_BRACKET, None, i, i+1)
-    #             elif ch == "]":
-    #                 yield Token(TokenEnum.CLOSE_BRACKET, None, i, i+1)
-    #             elif ch == ".":
-    #                 yield Token(TokenEnum.DOT, None, i, i+1)
-    #             else:
-    #                 raise ValueError(f"invalid character {ch}")
-    #
-    #         elif ch in "0123456789":
-    #             if building_string is not None:
-    #                 building_string += ch
-    #             elif building_number is not None:
-    #                 building_number += ch
-    #             else:
-    #                 building_number = ch
-    #
-    #         elif ch.isalpha() or ch == "_":
-    #             if building_string is not None:
-    #                 building_string += ch
-    #             elif building_number is not None:
-    #                 yield Token(TokenEnum.NUMBER, building_number, i - len(building_number), i)
-    #                 building_number = None
-    #                 building_string = ch
-    #             else:
-    #                 building_string += ch
-    #         else:
-    #             raise ValueError(f"invalid character \"{ch}\" (position={i})")
-    #
-    # def recursive_handle_single_value(container,  token: Token, i: int, tokens: List[Token], value: Any):
-    #     container_child = None
-    #     if token.token_type == TokenEnum.ID and tokens[i+1].token_type == TokenEnum.OPEN_BRACKET:
-    #         # hello.VALUE[0].foo = 5
-    #         # child is array. Fetch it from container or create it
-    #         key = token.payload
-    #         if key not in container:
-    #             container_child = list()
-    #             container[key] = container_child
-    #         else:
-    #             container_child = container[key]
-    #
-    #         recursive_handle_single_value(container_child, tokens[i+1], i+1, tokens, value)
-    #
-    #         if index == len(container_child):
-    #             container_child.append(container_child)
-    #         else:
-    #             container_child[index] = container_child
-    #
-    #     elif token.token_type == TokenEnum.OPEN_BRACKET:
-    #         # hello.value[0] -> [2] <- [6][7] = 4
-    #         # the payload is an array
-    #
-    #         # handle the next arrays, if any
-    #         if tokens[i + 1] == TokenEnum.CLOSE_BRACKET:
-    #             index = len(container)
-    #             skip_to = i + 3
-    #         elif tokens[i + 2] == TokenEnum.NUMBER:
-    #             index = int(tokens[i + 2].payload)
-    #             skip_to = i + 4
-    #         else:
-    #             raise ValueError(f"syntax error: number or ']' expected")
-    #
-    #     elif token.token_type == TokenEnum.ID and tokens[i+1].token_type == TokenEnum.DOT:
-    #         # hello.VALUE.foo.bar
-    #         # we need to create a dictionary
-    #         key = token.payload
-    #         if key not in container:
-    #             container_child = dict()
-    #             container[key] = container_child
-    #         else:
-    #             container_child = container[key]
-    #         recursive_handle_single_value(container_child, tokens[i+2], i+2, tokens, value)
-    #     elif token.token_type == TokenEnum.ID and tokens[i+1].token_type == TokenEnum.EOF:
-    #         # hello.VALUE = 5
-    #         # the key needs to be assigned to the value
-    #         key = token.payload
-    #         container[key] = value
-    #         return
-    #
-    #     else:
-    #         raise ValueError(f"syntax error in {token} (lookahead {tokens[i+1]})")
-    #
-    # def handle_single_value(app_context: AppContext, key: str, value: Any) -> AppContext:
-    #     tokens = list(read_token(key))
-    #     recursive_handle_single_value(
-    #         container=app_context.model,
-    #         token=tokens[0],
-    #         lookahead=tokens[1],
-    #         i=0,
-    #         tokens=tokens,
-    #         value=value
-    #     )
-    #     return app_context
-
-    def handle_single_value(app_context: AppContext, key: str, value: Any) -> AppContext:
+    def handle_single_value(aapp_context: AppContext, akey: str, avalue: Any) -> "AppContext":
         # keep generating the value
-        exec(f"app_context.model.values.{key}.set_value(value)", {"value": value, "app_context": app_context})
+        exec(f"app_context.model.values.{akey}.set_value(value)", {"value": avalue, "app_context": aapp_context})
 
     if options.inputFile is not None:
         app_context.input_file = options.inputFile
@@ -335,7 +203,7 @@ def update_using_command_line(app_context: AppContext, options: argparse.Namespa
     if options.writeOnStdout is not None:
         app_context.write_on_stdout = options.writeOnStdout
     if options.templateString is not None:
-        app_context.template_string = options.templateString[0]
+        app_context.template_string = options.templateString
     if options.format is not None:
         app_context.format = options.format
 
@@ -393,6 +261,7 @@ def add_commons(app_context: AppContext) -> AppContext:
 
     return app_context
 
+
 def add_functions(app_context: AppContext) -> AppContext:
     standard = dict(
         # commons function (they are so popular that we put them on the cwd)
@@ -407,9 +276,9 @@ def add_functions(app_context: AppContext) -> AppContext:
     return app_context
 
 
-def main(args):
+def main(args=None):
     if args is None:
-        args = sys.argv
+        args = sys.argv[1:]
 
     app_context = AppContext()
     options = parse_options(args)
@@ -493,4 +362,4 @@ def main(args):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    main()
