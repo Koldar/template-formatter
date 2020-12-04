@@ -22,7 +22,7 @@ def update_version():
     echo(f"Updating version to {variables.NEW_VERSION} in {cwd()}...", foreground="blue")
     ensure_has_variable("NEW_VERSION")
 
-    version_filepath = os.path.join("pmake", "version.py")
+    version_filepath = os.path.join("template_formatter", "version.py")
     write_file(version_filepath, f"VERSION = \"{variables.NEW_VERSION}\"", overwrite=True)
 
 
@@ -46,12 +46,10 @@ def build():
     elif on_windows():
         echo(f"building for windows in {cwd()}", foreground="blue")
         execute_stdout_on_screen([
-            f"source {path('venv', 'Scripts', 'activate.bat')}",
             f"python setup.py bdist_wheel",
-            f"{path('venv', 'Scripts', 'deactivate.bat')}",
         ])
     else:
-        raise PdMakeException()
+        raise PMakeException()
 
 
 def generate_documentation():
@@ -94,16 +92,12 @@ def upload_to_test_pypi():
     if on_linux():
         echo("Uploading for linux", foreground="blue")
         execute_stdout_on_screen([
-            #"source venv/bin/activate",
             f"twine upload --verbose --repository testpypi --username \"{TWINE_USER}\" --password \"{TWINE_PASSWORD}\" {upload_files}",
-            #"deactivate"
         ])
     elif on_windows():
         echo("Uploading for windows", foreground="blue")
         execute_stdout_on_screen([
-            #"venv/Scripts/activate.bat",
             f"twine upload --verbose --repository testpypi --username \"{TWINE_USER}\" --password \"{TWINE_PASSWORD}\" {upload_files}",
-            #"venv/Scripts/deactivate.bat"
         ])
     else:
         raise PMakeException()
