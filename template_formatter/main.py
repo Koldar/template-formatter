@@ -2,6 +2,7 @@ import argparse
 import logging
 import math
 import os
+import shutil
 
 from datetime import datetime
 from typing import Any, Iterable, Tuple
@@ -53,7 +54,18 @@ def parse_options(args):
         specification. For further information, please see https://toml.io/en/
     """)
     parser.add_argument("--inputFile", type=str, required=False, default=None, help="""
-        the template jinja2 file. If absent we will look for the file in configFile
+        the template jinja2 file. If absent we will look for the file in configFile.
+    """)
+    parser.add_argument("--inputDirectory", type=str, required=False, default=None, help="""
+        A directory that we need to template. We will scan the whole directory. If we find any file ending with ".template"
+        we will compile such file with this utility. Notice that directories with no files will not be processed at all.
+    """)
+    parser.add_argument("--outputDirectory", type=str, required=False, default=None, help="""
+        if inputDirectory is provided, this string represents the directory to create containing the instantiated folder 
+    """)
+    parser.add_argument("--trailingStringTemplateFile", type=str, required=False, default=None, help="""
+        The trailing substring each template file and directory we need to template has. Meaningful only if inputDirectory is set.
+        Default to ".template"
     """)
     parser.add_argument("-w", "--writeOnStdout", action="store_true", required=False, default=False, help="""
         If set, we will put the content of the generated file on the stdout rather than in a file. Overwrite outputFile
@@ -128,6 +140,12 @@ def update_using_config(app_context: AppContext, config_file: str) -> AppContext
                         os.path.dirname(abs_config_file),
                         app_context.input_file
                     ))
+            if "inputDirectory" in general_section:
+                app_context.input_directory = general_section["input_directory"]
+            if "outputDirectory" in general_section:
+                app_context.output_directory = general_section["output_directory"]
+            if "trailingStringTemplateFile" in general_section:
+                app_context.trailing_string_template_file = general_section["trailing_string_template_file"]
             if "output_file_format" in general_section:
                 app_context.output_file_format = general_section["output_file_format"]
             if "log_level" in general_section:
@@ -190,6 +208,12 @@ def update_using_command_line(app_context: AppContext, options: argparse.Namespa
         app_context.input_file = options.inputFile
     if options.outputFile is not None:
         app_context.output_file_format = options.outputFile
+    if options.inputDirectory is not None:
+        app_context.input_directory = options.inputDirectory
+    if options.outputDirectory is not None:
+        app_context.output_directory = options.outputDirectory
+    if options.trailingStringTemplateFile is not None:
+        app_context.trailing_string_template_file = options.trailingStringTemplateFile
     if options.loglevel is not None:
         app_context.log_level = options.loglevel
     if options.blockStartString is not None:
@@ -256,6 +280,12 @@ def apply_defaults(app_context: AppContext) -> AppContext:
         app_context.template_string = None
     if app_context.format is None:
         app_context.format = "jinja2"
+    if app_context.input_directory is None:
+        app_context.input_directory = None
+    if app_context.output_directory is None:
+        app_context.output_directory = None
+    if app_context.trailing_string_template_file is None:
+        app_context.trailing_string_template_file = ".template"
 
     return app_context
 
@@ -286,6 +316,110 @@ def add_functions(app_context: AppContext) -> AppContext:
     return app_context
 
 
+def template_string(app_context: AppContext, string: str, formatter: "ITemplateFormatter") -> str:
+    # we need to templatize the string
+    formatter.init_string(string, app_context)
+
+    actual_file_content = formatter.render_template(
+        model=app_context.model.values,
+        commons=app_context.model.commons,
+        functions=app_context.model.functions
+    )
+
+    formatter.reset()
+    return actual_file_content
+
+
+def template_file(app_context: AppContext, file: str, formatter: "ITemplateFormatter") -> str:
+    """
+    Template a single user file
+
+    :param app_context: context of the whole application
+    :param file: file to template
+    :param formatter: formatter used to instantiate the template
+    :return: a string containing the content of the instantiated file, where each parameter has been replaced with its instantiation
+    """
+    formatter.init_file(os.path.abspath(file), app_context.input_file_encoding, app_context)
+    actual_file_content = formatter.render_template(
+        model=app_context.model.values,
+        commons=app_context.model.commons,
+        functions=app_context.model.functions
+    )
+    formatter.reset()
+    return actual_file_content
+
+
+def template_directory(app_context: AppContext, directory_to_copy: str, directory_to_generate: str, formatter: "ITemplateFormatter"):
+    """
+    Scan a gien directory. We create a new whole root directory where each file is instantiated.
+    If the file ends with a specific substring, it is assumed it is a template file. If so, we create an instantiation of the file.
+    Otherwise, the file is copied as is.
+
+    Notice that also filenames and directory names can be templates as well
+
+    :param app_context: context of the whole directory
+    :param directory_to_copy: directory where templates are
+    :param directory_to_generate: directory to generate
+    :param formatter: formatter to use to format each template file
+    :return:
+    """
+
+    if not os.path.exists(directory_to_copy):
+        raise ValueError(f"{directory_to_copy} does not exist")
+    if not os.path.isdir(directory_to_copy):
+        raise ValueError(f"{directory_to_copy} is not a valid directory!")
+
+    for dir_path, folders, filenames in os.walk(directory_to_copy):
+        # directories to original root. It i9s most likely somethign like a/b/c
+        path_to_dir_path = os.path.relpath(start=directory_to_copy, path=dir_path)
+        # output dir_path
+        output_dir_path = os.path.abspath(os.path.normpath(os.path.join(directory_to_generate, path_to_dir_path)))
+        # We must not create the input directory, since it may be instantiated!
+        # manage directories
+        for folder_name in folders:
+            # manage a directory
+            if folder_name.endswith(app_context.trailing_string_template_file):
+                # strip the trailing string extension
+                string_to_template = os.path.basename(folder_name)[:-len(app_context.trailing_string_template_file)]
+                # the directory name is a template
+                new_folder_name = template_string(app_context, string_to_template, formatter)
+            else:
+                new_folder_name = folder_name
+
+            # copy directory
+            folder_abs_path = os.path.abspath(os.path.join(output_dir_path, new_folder_name))
+            os.makedirs(folder_abs_path, exist_ok=True)
+
+        # Manage files
+        for f in filenames:
+            file_to_copy = os.path.join(dir_path, f)
+
+            if file_to_copy.endswith(app_context.trailing_string_template_file):
+                # the filename is a template. Rename the file as well
+                string_to_template = os.path.basename(file_to_copy)[:-len(app_context.trailing_string_template_file)]
+                new_filename = template_string(
+                    app_context=app_context,
+                    string=string_to_template,
+                    formatter=formatter
+                )
+
+                file_content = template_file(
+                    app_context=app_context,
+                    file=file_to_copy,
+                    formatter=formatter
+                )
+
+                # write the file
+                output_file = os.path.join(output_dir_path, new_filename)
+                logging.info(f"Writing instantiated file {output_file}...")
+                with open(output_file, mode="w", encoding=app_context.output_file_encoding) as fw:
+                    fw.write(file_content)
+            else:
+                output_file = os.path.join(output_dir_path, f)
+                # the filename is not a template. Copy the whole file as is
+                shutil.copyfile(file_to_copy, output_file)
+
+
 def main(args=None):
     if args is None:
         args = sys.argv[1:]
@@ -309,25 +443,9 @@ def main(args=None):
     logging.basicConfig(level=getattr(logging, app_context.log_level))
     logging.info(f"logging level is {app_context.log_level}")
 
-    app_context.input_file = os.path.abspath(app_context.input_file)
-
-    # generate actual output file
-    # '/path/to/somefile', '.ext'
-    input_filename, input_ext = os.path.splitext(app_context.input_file)
-    input_filename = os.path.abspath(input_filename)
-    input_basedir = os.path.abspath(os.path.dirname(app_context.input_file))
-    input_basename = os.path.basename(app_context.input_file)
-
-    actual_output_file = os.path.abspath(app_context.output_file_format.format(
-        filename=input_filename,
-        ext=input_ext,
-        basename=input_basename,
-        basedir=input_basedir
-    ))
-
     logging.debug(f"input file = {app_context.input_file}")
     logging.debug(f"input string = {app_context.template_string}")
-    logging.info(f"output_file = {actual_output_file}")
+    logging.debug(f"input directory = {app_context.input_directory}")
     logging.debug(f"block_start_string = {app_context.block_start_string}")
     logging.debug(f"block_end_string = {app_context.block_end_string}")
     logging.debug(f"expression_start_string = {app_context.expression_start_string}")
@@ -355,24 +473,35 @@ def main(args=None):
     else:
         raise ValueError(f"invalid format {app_context.format}")
 
-    if app_context.template_string is not None:
-        # we need to templatize the string
-        formatter.init_string(app_context.template_string, app_context)
+    if app_context.input_directory is not None:
+        template_directory(app_context, app_context.input_directory, app_context.output_directory, formatter)
+        # we need to template a whole directory
+        return
     else:
-        # create file
-        formatter.init_file(os.path.abspath(app_context.input_file), app_context.input_file_encoding, app_context)
+        if app_context.template_string is not None:
+            actual_file_content = template_string(app_context, app_context.template_string, formatter)
+        elif app_context.input_file is not None:
+            actual_file_content = template_file(app_context, app_context.input_file, formatter)
+        else:
+            raise ValueError(f"Invalid input! Either input_file or template_string needs to be defined!")
 
-    actual_file_content = formatter.render_template(
-        model=app_context.model.values,
-        commons=app_context.model.commons,
-        functions=app_context.model.functions
-    )
-
-    if app_context.write_on_stdout:
-        print(actual_file_content)
-    else:
-        with open(actual_output_file, "w", encoding=app_context.output_file_encoding) as f:
-            f.write(actual_file_content)
+        if app_context.write_on_stdout:
+            print(actual_file_content)
+        else:
+            # generate actual output file
+            # '/path/to/somefile', '.ext'
+            input_filename, input_ext = os.path.splitext(app_context.input_file)
+            input_filename = os.path.abspath(input_filename)
+            input_basedir = os.path.abspath(os.path.dirname(app_context.input_file))
+            input_basename = os.path.basename(app_context.input_file)
+            actual_output_file = os.path.abspath(app_context.output_file_format.format(
+                filename=input_filename,
+                ext=input_ext,
+                basename=input_basename,
+                basedir=input_basedir
+            ))
+            with open(actual_output_file, "w", encoding=app_context.output_file_encoding) as f:
+                f.write(actual_file_content)
 
 
 if __name__ == "__main__":

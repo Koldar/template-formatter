@@ -23,7 +23,9 @@ class FStringFormatter(ITemplateFormatter):
         for k, v in functions.items():
             global_dict[k] = v
         # we assume in __template_string there is a string endpoint
-        return eval("f" + self.__template_string, global_dict, {})
+        result = eval("f\"\"\"" + self.__template_string + "\"\"\"", global_dict, {})
+        # it is a string, hence we need to remove the trailing characters
+        return result.strip('\'\"')
 
     def reset(self):
         self.__template_string = None

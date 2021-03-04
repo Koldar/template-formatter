@@ -1,3 +1,4 @@
+import os
 import unittest
 from unittest.mock import patch
 from io import StringIO
@@ -150,6 +151,24 @@ class MyTestCase(unittest.TestCase):
             '--writeOnStdout',
             """print("Hello " + ', '.join(map(str, [1,2,3])))"""
         ]))
+
+    def test_16(self):
+        main([
+            '--configFile', "config.toml",
+            "--inputDirectory", f"""{os.path.join(os.getcwd(), "input", "foo")}""",
+            '--trailingStringTemplateFile', '.template',
+            f"--outputDirectory", f"""{os.path.join(os.getcwd(), "output", "foo")}""",
+            '--format', 'fstring',
+        ])
+
+    def test_17(self):
+        main([
+            '--configFile', "config.toml",
+            "--inputDirectory", f"""{os.path.join(os.getcwd(), "input", "foo2")}""",
+            '--trailingStringTemplateFile', '.template',
+            f"--outputDirectory", f"""{os.path.join(os.getcwd(), "output/foo2")}""",
+            '--format', 'fstring',
+        ])
 
 
 if __name__ == '__main__':

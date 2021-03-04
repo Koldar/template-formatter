@@ -8,6 +8,9 @@ class AppContext:
     def __init__(self):
         self.model = Jinja2Model()
         self.input_file: Optional[str] = None
+        self.input_directory: Optional[str] = None
+        self.output_directory: Optional[str] = None
+        self.trailing_string_template_file: Optional[str] = None
         self.output_file_format: Optional[str] = None
         self.log_level: Optional[str] = None
         self.block_start_string: Optional[str] = None
