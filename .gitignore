@@ -5,10 +5,11 @@ venv/
 *.spec
 *PASSWORD*
 
-# Pyinstaller build
+# python build
 dist/
-
+*.egg-info/
 build/
+
 #Some users do not use make and the latex build files are deployed in root
 *.pdf
 *.aux
@@ -29,6 +30,13 @@ build/
 
 #LATEX
 *-eps-converted-to.pdf
+
+# TEST
+tests/output
+
+# PMake
+
+pmakeup-cache.json
 
 
 
