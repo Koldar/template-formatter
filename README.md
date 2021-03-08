@@ -1,6 +1,7 @@
 # Intoduction #
 
-This project allows you to gnerate a file from a jinja2 template file
+This project allows you to generate a file from a jinja2 template file
+
 
 # Installation
 
@@ -12,7 +13,7 @@ pip install template-formatter
 
 Often you need to create a file or a string according to a specific template. When you need to perform it in python, it is all fine and dandy.
 However, the problem arises when you are dealing with a different programming language (e.g., C, Latex) that can perform said task, but in a much less easy way.
-You can use this program to easiluy template files and string and then use them inside another environment.   
+You can use this program to easiluy template files and string and then use them inside another environment.
 
 # Usage
 
